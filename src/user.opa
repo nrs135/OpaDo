@@ -10,7 +10,7 @@ import stdlib.web.client
 import stdlib.core.web.core
 import stdlib.widgets.core
 import stdlib.widgets.loginbox
-import stdlib.widgets.formbuilder
+//import stdlib.widgets.formbuilder
 import stdlib.{widgets.bootstrap}
 import stdlib.apis.{facebook, facebook.auth, facebook.graph}
 

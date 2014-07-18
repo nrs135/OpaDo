@@ -9,7 +9,7 @@ module Todo {
     }
 
     function make_done(string id) {
-        if(Dom.is_checked(Dom.select_inside(#{id}, Dom.select_raw("input")))) {
+        if(Dom.is_checked(Dom.select_inside(#{id}, Dom.select_raw_unsafe("input")))) {
             db_make_done(id);
             Dom.add_class(#{id}, "done")
         } else {
@@ -19,7 +19,7 @@ module Todo {
     }
 
     exposed @async function db_make_done(string id) {
-        useref = User.get_username();
+        //useref = User.get_username();
         /opado/todos[~{ id }] <- { done : true };
     }
 
@@ -30,7 +30,7 @@ module Todo {
     }
 
     exposed @async function db_remove_item(string id) {
-        useref = User.get_username();
+        //useref = User.get_username();
         Db.remove(@/opado/todos[~{ id }]);
         void
     }
@@ -138,7 +138,7 @@ module Todo {
               </p>
             </div>
           </div>
-          <div class="footer">Note: This is beta version. No guarentee your data wont be lost.</div>
+          <div class="footer">Note: This is a beta version. No guarantee your data won't be lost.</div>
        </div>
     }
 
