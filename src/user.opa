@@ -10,16 +10,15 @@ import stdlib.web.client
 import stdlib.core.web.core
 import stdlib.widgets.core
 import stdlib.widgets.loginbox
-//import stdlib.widgets.formbuilder
 import stdlib.{widgets.bootstrap}
 import stdlib.apis.{facebook, facebook.auth, facebook.graph}
+import sso
 
-/**
-database stringmap(stringmap(todo_item)) /todo_items
-database /todo_items[_][_]/done = false
-database User.map(User.t) /users
-database /users[_]/is_oauth = false
-*/
+#<Ifstatic:OAUTH_FACEBOOK>
+fb = true
+#<Else>
+fb = false
+#<End>
 
 // DATA
 
@@ -35,7 +34,19 @@ FBA = FbAuth(OpaIntro1.config)
 FBG = FbGraph
 redirect = "http://opado.org/connect"
 
+// Webmail SSO
+
+sso_host = get_cmdline("--sso-host", "opalang.org", "hostname", "Distant SSO Server host")
+host = get_cmdline("--host", "http://opado.org", "uri", "Local server uri")
+consumer_key = get_cmdline("--consumer-key", "xxxxxxxxxxxxxxx", "", "SSO Consumer key")
+consumer_secret = get_cmdline("--consumer-secret", "xxxxxxxxxxxxxxx", "", "SSO Consumer secret")
+
+AuthorAccess =
+  SsoUser(sso_host, host, consumer_key, consumer_secret,  "opado", "/1/oauth", {oauth}, User.register,
+          (function() { Client.goto("/todos") }))
+
 module User_data {
+
     function User.ref mk_ref(string login){
         String.to_lower(login)
     }
@@ -55,6 +66,7 @@ module User_data {
 }
 
 module User {
+
     private state = UserContext.make((User.status) { unlogged })
 
     function create(username, password, is_oauth) {
@@ -73,6 +85,16 @@ module User {
         }
     }
 
+    function register(meta_key, name, _is_admin) {
+        User.ref ref = meta_key
+        user = User_data.get(ref);
+        match (user) {
+        case {none}:
+          user = ~{ref, username:ref, password:Crypto.Hash.md5(Random.string(40)), fullname:name, is_oauth:true}
+          /opado/users[~{ref}] <- user
+        default: void
+        }
+    }
 
     function get_status() {
         UserContext.execute((function(a){a}), state)
@@ -81,9 +103,24 @@ module User {
     function is_logged() {
         match (get_status()) {
           case { logged : _ }: true
-          case { unlogged }: false
+          case { unlogged }:
+            meta_key = AuthorAccess.get_current()
+            if (AuthorAccess.is_logged(meta_key))
+              match (User_data.get(meta_key)) {
+              case {some:_}:
+                UserContext.change(function(_){ { logged :User_data.mk_ref(meta_key) } },state)
+                true
+              case {none}: false
+              }
+            else false
         }
     }
+
+    login_xhtml =
+      if (fb)
+       <a class="pull-right" href="{FBA.user_login_url([], redirect)}"><img src="/resources/fbconnect.png" /></a>
+      else
+       <a class="pull-right login-btn btn btn-success" onclick={ function (_) { AuthorAccess.login() } }>Sign in with PEPS</a>
 
     function login(login, password) {
         useref = User_data.mk_ref(login);
@@ -103,7 +140,10 @@ module User {
 
     function logout() {
         UserContext.change((function(_){{ unlogged }}), state);
-        Client.reload()
+        if (fb)
+          Client.reload()
+        else
+          AuthorAccess.logout()
     }
 
     function footer() {
@@ -123,8 +163,6 @@ module User {
         if (User.is_logged()) {
             Resource.default_redirection_page("/todos")
         } else {
-           login_url = FBA.user_login_url([], redirect);
-
             mypage("Login",
             <a href="http://github.com/tsloughter/opado" xmlns="http://www.w3.org/1999/xhtml">
             <img src="https://a248.e.akamai.net/assets.github.com/img/7afbc8b248c68eb468279e8c17986ad46549fb71/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" id="cfyzwpwbekcrcqccmvfnzflwwxddvqsz" style="position: absolute; top: 0em; right: 0em; border-top-width: 0em; border-right-width: 0em; border-bottom-width: 0em; border-left-width: 0em; border-style: initial; border-color: initial; border-image: initial; z-index:10001;"/>
@@ -140,7 +178,7 @@ module User {
                    {loginbox()}
                    <div class="well">
                       <p class="pull-left">No account? <a href="/user/new"><strong>Sign Up</strong></a></p>
-                      <a class="pull-right" href="{login_url}"><img src="/resources/fbconnect.png" /></a>
+                      {login_xhtml}
                    </div>
                 </div>
                 {footer()}
@@ -150,8 +188,6 @@ module User {
     }
 
     function new(){
-      login_url = FBA.user_login_url([], redirect);
-
       <a href="http://github.com/tsloughter/opado" xmlns="http://www.w3.org/1999/xhtml">
       <img src="https://a248.e.akamai.net/assets.github.com/img/7afbc8b248c68eb468279e8c17986ad46549fb71/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" id="cfyzwpwbekcrcqccmvfnzflwwxddvqsz" style="position: absolute; top: 0em; right: 0em; border-top-width: 0em; border-right-width: 0em; border-bottom-width: 0em; border-left-width: 0em; border-style: initial; border-color: initial; border-image: initial; z-index:10001;"/>
       </a>
@@ -179,7 +215,7 @@ module User {
              </form>
              <div class="well">
                   <p class="pull-left">Already user? <a href="/login"><strong>Login here</strong></a></p>
-                  <a class="pull-right" href="{login_url}"><img src="/resources/fbconnect.png" /></a>
+                  {login_xhtml}
              </div>
            </div>
            {footer()}

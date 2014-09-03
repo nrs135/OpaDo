@@ -8,6 +8,7 @@ urls = parser {
     //Rule.debug_parse_string((function(s){Log.notice("URL", s)}))
     //Rule.fail : error("Error")
     | r={Server.resource_map(resources)} .* : r
+    | special=AuthorAccess.special_uris2 -> special
     | "/todos?" result={Todo.resource} : with_request(result)
     | "/connect?" data=(.*)            : User.connect(Text.to_string(data)) 
     | "/user"  result={User.resource}  : with_request(result)
