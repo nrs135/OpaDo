@@ -42,13 +42,13 @@ consumer_key = get_cmdline("--consumer-key", "xxxxxxxxxxxxxxx", "", "SSO Consume
 consumer_secret = get_cmdline("--consumer-secret", "xxxxxxxxxxxxxxx", "", "SSO Consumer secret")
 
 AuthorAccess =
-  SsoUser(sso_host, host, consumer_key, consumer_secret,  "opado", "/1/oauth", {oauth}, User.register,
-          (function() { Client.goto("/todos") }))
+  SsoUser(sso_host, host, consumer_key, consumer_secret,  "opado", "/api/v1/oauth", {oauth}, User.register,
+          (function() { Client.goto("/todos") }), Client.alert)
 
 module User_data {
 
     function User.ref mk_ref(string login){
-        String.to_lower(login)
+        /*String.to_lower*/(login) // Don't lowercase, it confuses the db
     }
 
     function string ref_to_string(User.ref ref){
@@ -120,7 +120,7 @@ module User {
       if (fb)
        <a class="pull-right" href="{FBA.user_login_url([], redirect)}"><img src="/resources/fbconnect.png" /></a>
       else
-       <a class="pull-right login-btn btn btn-success" onclick={ function (_) { AuthorAccess.login() } }>Sign in with PEPS</a>
+       <a class="pull-right login-btn btn btn-success" onclick={ function (_) { AuthorAccess.agent_login("/todos") } }>Sign in with PEPS</a>
 
     function login(login, password) {
         useref = User_data.mk_ref(login);
